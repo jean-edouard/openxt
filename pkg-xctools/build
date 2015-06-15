@@ -3,6 +3,26 @@
 source ${BUILD_SCRIPTS}/build_helpers.sh
 source ${BUILD_SCRIPTS}/version
 
+# Usage: prepare_package <name>
+prepare_pv_driver()
+{
+    local NAME="$1"
+    local TMP_DIR="$NAME"
+    local DST_DIR="${deb_data}/usr/src/openxt-${NAME}-dkms-1.0"
+    rm -rf $TMP_DIR
+    mkdir -p $TMP_DIR
+    git_clone $TMP_DIR "${OPENXT_GIT_PROTOCOL}://${OPENXT_GIT_MIRROR}/pv-linux-drivers.git" "${BRANCH}" "$ALLOW_SWITCH_BRANCH_FAIL"
+    pushd ${TMP_DIR}/xc-${NAME}
+        rm -rf .git
+        rm -f .gitignore
+        mkdir -p $DST_DIR
+        cp -a . $DST_DIR
+        [ -f dkms/lintian ] && install -m 0644 -D dkms/lintian ${deb_data}/usr/share/lintian/overrides/${NAME}-dkms
+        install -m 0755 -d ${deb_data}/usr/share/doc/${NAME}-dkms
+        (cd ${deb_data}/usr/share/doc/${NAME}-dkms && ln -s ../../common-licenses/GPL-2 copyright)
+    popd
+    rm -rf $TMP_DIR
+}
 
 # Usage: make_bundle_xctools <name.deb>
 # 2011-07-14: TODO: This should be considered as a temporary solution.
@@ -31,24 +51,15 @@ make_bundle_xctools()
     mkdir -p ${deb_data}/usr/src/libv4v-1.0/src/linux/ && cp git-tmp/v4v/linux/v4v_dev.h ${deb_data}/usr/src/libv4v-1.0/src/linux/
     rm -rf git-tmp
 
-    # xenclient-pv-drivers
-    local PTMP_DIR="xenclient-pv-drivers"
-    local PDST_DIR="${deb_data}/usr/src/xenclient-pv-drivers-dkms-1.0"
-    rm -rf $PTMP_DIR
-    mkdir -p $PTMP_DIR
-    git_clone $PTMP_DIR "${OPENXT_GIT_PROTOCOL}://${OPENXT_GIT_MIRROR}/pv-linux-drivers.git" "${BRANCH}" "$ALLOW_SWITCH_BRANCH_FAIL"
-    pushd $PTMP_DIR
-        rm -rf .git
-	rm -f .gitignore
-	mkdir -p $PDST_DIR
-	cp -a . $PDST_DIR
-        install -m 0644 -D dkms/lintian ${deb_data}/usr/share/lintian/overrides/xenclient-pv-drivers-dkms
-        install -m 0755 -d ${deb_data}/usr/share/doc/xenclient-pv-drivers-dkms
-        (cd ${deb_data}/usr/share/doc/xenclient-pv-drivers-dkms && ln -s ../../common-licenses/GPL-2 copyright)
-    popd
-    rm -rf $PTMP_DIR
+    # udev rules
     mkdir -p ${deb_data}/lib/udev/rules.d
     ( cd ${BUILD_SCRIPTS}/pkg-xctools/udev-rules/ && cp *.rules ${deb_data}/lib/udev/rules.d/ )
+
+    # audio
+    prepare_pv_driver audio
+
+    # v4v
+    prepare_pv_driver v4v
 
     # xenmou
     mkdir -p xenmou_install

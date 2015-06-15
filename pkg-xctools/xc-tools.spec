@@ -28,7 +28,7 @@
 %include common.inc
 
 Name: xc-tools
-Summary: XenClient XT tools
+Summary: OpenXT tools
 Source0: %{name}.tar.gz
 Source1: %{name}-centos.tar.gz
 BuildArch: noarch
@@ -54,8 +54,6 @@ mv centos/xenstore-agent centos/xblanker etc/rc.d/init.d
 rmdir centos
 
 rm -r usr/share
-# TODO: Not used? Also remove from debian package?
-rm -r usr/src/xenclient-pv-drivers-dkms-1.0/dkms
 
 mkdir -p etc/dracut.conf.d
 cat <<EOF > etc/dracut.conf.d/xc-tools
