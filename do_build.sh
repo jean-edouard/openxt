@@ -206,6 +206,7 @@ OPENXT_GIT_MIRROR="$OPENXT_GIT_MIRROR"
 OPENXT_GIT_PROTOCOL="$OPENXT_GIT_PROTOCOL"
 OPENXT_BRANCH="$ORIGIN_BRANCH"
 OPENXT_TAG="$BRANCH"
+DISTRO="linux-3.18"
 
 require conf/xenclient-extra.conf
 EOF
@@ -319,6 +320,7 @@ do_oe()
 
         pushd "$path"
         export MACHINE="$machine"
+        export DISTRO="linux-3.18"
         if [ "x$FREEZE_URIS" = "xyes" ]; then
             echo "Running URI freezer"
              < /dev/null ./bb --disable-wrapper -c freezeall "$image" | do_oe_log
