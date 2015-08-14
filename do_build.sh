@@ -608,6 +608,9 @@ do_oe_packages_tree()
         # rsync seems to delegate non-remote operations to another program, ignoring --rsync-path
         # If the destination is not remote, we have to run the --rsync-path command hack manualy
         ( echo $BUILD_RSYNC_DESTINATION | grep ':' > /dev/null 2>&1) || mkdir -p "$dest"
+        # Update oe-archive with the packages from the current build
+        rsync -ac "$path/tmp-eglibc/deploy/ipk/" "$SYNC_CACHE_OE/oe-archive/"
+        # Create a symlink tree, using $SYNC_CACHE_OE/oe-archive/ as a target
         rsync -altvzr --exclude "morgue" --link-dest="$SYNC_CACHE_OE/oe-archive/"       \
             --rsync-path="mkdir -p \"$dest\" && rsync"                                  \
             "$path/tmp-eglibc/deploy/ipk" "$dest/packages"
