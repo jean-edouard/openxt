@@ -611,9 +611,9 @@ do_oe_packages_tree()
         # Update oe-archive with the packages from the current build
         rsync -ac "$path/tmp-eglibc/deploy/ipk/" "$SYNC_CACHE_OE/oe-archive/"
         # Create a symlink tree, using $SYNC_CACHE_OE/oe-archive/ as a target
-        rsync -altvzr --exclude "morgue" --link-dest="$SYNC_CACHE_OE/oe-archive/"       \
-            --rsync-path="mkdir -p \"$dest\" && rsync"                                  \
-            "$path/tmp-eglibc/deploy/ipk" "$dest/packages"
+        rsync -rv --size-only --exclude "morgue" --link-dest="$SYNC_CACHE_OE/oe-archive/" \
+            --rsync-path="mkdir -p \"$dest/packages/ipk\" && rsync"                       \
+            "$path/tmp-eglibc/deploy/ipk/" "$dest/packages/ipk"
 }
 
 do_oe_copy_licenses()
