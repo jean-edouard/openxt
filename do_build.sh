@@ -609,10 +609,13 @@ do_oe_packages_tree()
         # If the destination is not remote, we have to run the --rsync-path command hack manualy
         ( echo $BUILD_RSYNC_DESTINATION | grep ':' > /dev/null 2>&1) || mkdir -p "$dest"
         # Update oe-archive with the packages from the current build
-        rsync -ac "$path/tmp-eglibc/deploy/ipk/" "$SYNC_CACHE_OE/oe-archive/"
+        rsync -a "$path/tmp-eglibc/deploy/ipk/" "$SYNC_CACHE_OE/oe-archive/"
         # Create a symlink tree, using $SYNC_CACHE_OE/oe-archive/ as a target
-        rsync -rv --size-only --exclude "morgue" --link-dest="$SYNC_CACHE_OE/oe-archive/" \
-            --rsync-path="mkdir -p \"$dest/packages/ipk\" && rsync"                       \
+        # $SYNC_CACHE_OE and $dest can be remote (<IP>:<FOLDER>), removing "<IP>:"
+        sync_cache_oe_folder="`echo $SYNC_CACHE_OE | sed 's/^.*://'`"
+        dest_folder="`echo $dest | sed 's/^.*://'`"
+        rsync -rv --size-only --exclude "morgue" --link-dest="$sync_cache_oe_folder/oe-archive/" \
+            --rsync-path="mkdir -p \"$dest_folder/packages/ipk\" && rsync"                       \
             "$path/tmp-eglibc/deploy/ipk/" "$dest/packages/ipk"
 }
 
