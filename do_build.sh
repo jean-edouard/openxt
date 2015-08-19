@@ -609,8 +609,9 @@ do_oe_packages_tree()
         # If the destination is not remote, we have to run the --rsync-path command hack manualy
         ( echo $BUILD_RSYNC_DESTINATION | grep ':' > /dev/null 2>&1) || mkdir -p "$dest"
         # Update oe-archive with the packages from the current build
-        rsync -a "$path/tmp-eglibc/deploy/ipk/" "$SYNC_CACHE_OE/oe-archive/"
-        # Create a symlink tree, using $SYNC_CACHE_OE/oe-archive/ as a target
+        # Exclude the Package list files, we don't want hardlinks to them
+        rsync -a --exclude "Packages" "$path/tmp-eglibc/deploy/ipk/" "$SYNC_CACHE_OE/oe-archive/"
+        # Create a hardlink tree, using $SYNC_CACHE_OE/oe-archive/ as a target
         # $SYNC_CACHE_OE and $dest can be remote (<IP>:<FOLDER>), removing "<IP>:"
         sync_cache_oe_folder="`echo $SYNC_CACHE_OE | sed 's/^.*://'`"
         dest_folder="`echo $dest | sed 's/^.*://'`"
