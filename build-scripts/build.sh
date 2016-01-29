@@ -39,7 +39,7 @@ build_container() {
     }
 
     # Build
-    cat $NAME/build.sh | sed -e "s|\%DUDE\%|${DUDE}|" -e "s|\%BUILD_DIR\%|${BUILD_DIR}|" -e "s|\%IP_C\%|${IP_C}|" | ssh -t -t -i ssh-key/openxt -oStrictHostKeyChecking=no build@192.168.${IP_C}.1${NUMBER}
+    cat $NAME/build.sh | sed -e "s|\%DUDE\%|${DUDE}|" -e "s|\%BUILD_DIR\%|${BUILD_DIR}|" -e "s|\%IP_C\%|${IP_C}|" | ssh -t -t -i ~${DUDE}/ssh-key/openxt -oStrictHostKeyChecking=no build@192.168.${IP_C}.1${NUMBER}
 }
 
 build_container "01" "oe"
