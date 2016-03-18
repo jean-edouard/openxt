@@ -78,6 +78,15 @@ Function Install-NSIS ($workdir) {
   PerformDownload "$nsisBaseUrl/$name" $target "69-C2-AE-5C-9F-2E-E4-5B-06-26-90-5F-AF-FA-A8-6D-4E-2F-C0-D3-E8-C1-18-C8-BC-68-99-DF-68-46-7B-32"
   # By piping to Write-Host, we force the script to wait
   Invoke-CommandChecked $target /S
+
+  # Windows 10 doesn't seem to add NSIS to the path by default, but we need it.
+  # Adding it manually and refreshing the path for the current process
+  $thePath = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
+  $thePathIsGood = echo $thePath | Select-String -Quiet "NSIS"
+  If ($thePathIsGood -ne $True) {
+    [System.Environment]::SetEnvironmentVariable("Path", "$($thePath);$($nsisdest)", "Machine")
+  }
+  $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
 }
 
 Function Test-NSISAdvancedLogging () {
@@ -114,7 +123,7 @@ function Install-GnuPG {
   Invoke-CommandChecked $gnupgsetup /S
   # The previous adds an entry to the path, which doesn't get auto updated.
   # Updating the path to be able to use gpg later in the script
-  $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine")
+  $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
 }
 
 function Test-Cygwin {
@@ -137,6 +146,15 @@ function Install-Cygwin {
   # NOTE:  Looks like the issue above might have been due to picking a mirror and resolved by
   #        -O and -s below.  Need to make sure git, zip, and unzip are the only packages needed.
   Invoke-CommandChecked $cygwinsetup -q -X -O -s http://www.mirrorservice.org/sites/sourceware.org/pub/cygwin/ -P "git,zip,unzip,mkisofs" | Write-Host
+
+  # Windows 10 doesn't seem to add Cygwin to the path by default, but we need it.
+  # Adding it manually and refreshing the path for the current process
+  $thePath = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
+  $thePathIsGood = echo $thePath | Select-String -Quiet "cygwin"
+  If ($thePathIsGood -ne $True) {
+    [System.Environment]::SetEnvironmentVariable("Path", "$($thePath);C:\cygwin\bin", "Machine")
+  }
+  $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
 }
 
 function Test-7zip {
