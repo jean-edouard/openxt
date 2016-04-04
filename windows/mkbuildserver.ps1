@@ -30,3 +30,8 @@ if ($startupExists -ne $True) {
   mkdir $startup
 }
 copy BuildDaemon\winbuildd.bat "$($startup)\winbuildd.bat"
+
+# Create ssh key
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine")
+cd C:\winbuildd
+ssh-keygen -t rsa -N "''" -f id_rsa
