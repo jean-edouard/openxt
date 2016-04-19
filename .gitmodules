@@ -1,0 +1,4 @@
+[submodule "build/repos/openembedded-core"]
+	path = build/repos/openembedded-core
+	url = git://git.openembedded.org/openembedded-core
+	branch = jethro
