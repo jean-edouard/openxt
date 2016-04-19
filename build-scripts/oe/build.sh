@@ -77,6 +77,12 @@ build_step() {
     STEP=$2
 
     MACHINE=$MACHINE ./bb $STEP | tee -a build.log
+
+    # The return value of `./bb` got hidden by `tee`. Bring it back.
+    # Get the return value
+    ret=${PIPESTATUS[0]}
+    # Surface the value, the "-e" bash flag will pick up on any error
+    ( exit $ret )
 }
 
 mkdir -p $BUILD_DIR
@@ -103,11 +109,11 @@ fi
 # Build
 mkdir -p build
 cd build
-build_step "xenclient-dom0" "xenclient-initramfs-image"
-build_step "xenclient-dom0" "xenclient-stubinitramfs-image"
-build_step "xenclient-dom0" "xenclient-dom0-image"
-build_step "xenclient-uivm" "xenclient-uivm-image"
-build_step "xenclient-ndvm" "xenclient-ndvm-image"
+build_step "xenclient-dom0"       "xenclient-initramfs-image"
+build_step "xenclient-stubdomain" "xenclient-stubdomain-initramfs-image"
+build_step "xenclient-dom0"       "xenclient-dom0-image"
+build_step "xenclient-uivm"       "xenclient-uivm-image"
+build_step "xenclient-ndvm"       "xenclient-ndvm-image"
 
 # Copy the build output
 scp -r build-output/* "${BUILD_USER}@${SUBNET_PREFIX}.${IP_C}.1:${ALL_BUILDS_SUBDIR_NAME}/${BUILD_DIR}/"
