@@ -29,33 +29,85 @@ BRANCH=%BRANCH%
 SUBNET_PREFIX=%SUBNET_PREFIX%
 ALL_BUILDS_SUBDIR_NAME=%ALL_BUILDS_SUBDIR_NAME%
 
+HOST_IP=${SUBNET_PREFIX}.${IP_C}.1
+LOCAL_USER=`whoami`
+BUILD_PATH=`pwd`/openxt/build
+
 cd ~/certs
 CERTS_PATH=`pwd`
 cd ..
+
+setupoe() {
+    source version
+    cp build/conf/local.conf-dist build/conf/local.conf
+    cat common-config >> build/conf/local.conf
+    cat >> build/conf/local.conf <<EOF
+# Distribution feed
+XENCLIENT_PACKAGE_FEED_URI="file:///storage/ipk"
+
+SSTATE_DIR ?= "$BUILD_PATH/sstate-cache/$BRANCH"
+
+DL_DIR ?= "$BUILD_PATH/downloads"
+export CCACHE_DIR = "$BUILD_PATH/cache"
+CCACHE_TARGET_DIR="$CACHE_DIR"
+
+OPENXT_MIRROR="http://mirror.openxt.org"
+OPENXT_GIT_MIRROR="$HOST_IP/$BUILD_USER"
+OPENXT_GIT_PROTOCOL="git"
+OPENXT_BRANCH="$BRANCH"
+OPENXT_TAG="$BRANCH"
+
+XENCLIENT_BUILD_DATE = "`date +'%T %D'`"
+XENCLIENT_BUILD_BRANCH = "${BRANCH}"
+XENCLIENT_VERSION = "$VERSION"
+XENCLIENT_RELEASE = "$RELEASE"
+XENCLIENT_TOOLS = "$XENCLIENT_TOOLS"
+
+# dir for generated deb packages
+XCT_DEB_PKGS_DIR := "${BUILD_PATH}/xct_deb_packages"
+
+# Production and development repository-signing CA certificates
+REPO_PROD_CACERT="/home/${LOCAL_USER}/certs/prod-cacert.pem"
+REPO_DEV_CACERT="/home/${LOCAL_USER}/certs/dev-cacert.pem"
+EOF
+}
+
+build_step() {
+    MACHINE=$1
+    STEP=$2
+
+    MACHINE=$MACHINE ./bb $STEP | tee -a build.log
+}
 
 mkdir -p $BUILD_DIR
 cd $BUILD_DIR
 
 if [ ! -d openxt ] ; then
-    git clone -b ${BRANCH} git://${SUBNET_PREFIX}.${IP_C}.1/${BUILD_USER}/openxt.git
+    # Clone main repos
+    git clone -b ${BRANCH} git://${HOST_IP}/${BUILD_USER}/openxt.git
+    cd openxt
+
+    # Fetch "upstream" layers
+    git submodule init
+    git submodule update
+
+    # Clone OpenXT layers
+    git clone -b ${BRANCH} git://${HOST_IP}/${BUILD_USER}/xenclient-oe.git build/repos/xenclient-oe
+
+    # Configure OpenXT
+    setupoe
+else
+    cd openxt
 fi
 
-cd openxt
-
-if [ ! -e .config ] ; then
-    cp example-config .config
-    cat >>.config <<EOF
-BRANCH="${BRANCH}"
-OPENXT_GIT_MIRROR="${SUBNET_PREFIX}.${IP_C}.1/${BUILD_USER}"
-OPENXT_GIT_PROTOCOL="git"
-REPO_PROD_CACERT="${CERTS_PATH}/prod-cacert.pem"
-REPO_DEV_CACERT="${CERTS_PATH}/dev-cacert.pem"
-REPO_DEV_SIGNING_CERT="${CERTS_PATH}/dev-cacert.pem"
-REPO_DEV_SIGNING_KEY="${CERTS_PATH}/dev-cakey.pem"
-EOF
-fi
-
-./do_build.sh | tee build.log
+# Build
+mkdir -p build
+cd build
+build_step "xenclient-dom0" "xenclient-initramfs-image"
+build_step "xenclient-dom0" "xenclient-stubinitramfs-image"
+build_step "xenclient-dom0" "xenclient-dom0-image"
+build_step "xenclient-uivm" "xenclient-uivm-image"
+build_step "xenclient-ndvm" "xenclient-ndvm-image"
 
 # Copy the build output
 scp -r build-output/* "${BUILD_USER}@${SUBNET_PREFIX}.${IP_C}.1:${ALL_BUILDS_SUBDIR_NAME}/${BUILD_DIR}/"
