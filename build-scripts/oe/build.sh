@@ -73,17 +73,38 @@ REPO_DEV_CACERT="/home/${LOCAL_USER}/certs/dev-cacert.pem"
 EOF
 }
 
-build_step() {
+build_image() {
     MACHINE=$1
-    STEP=$2
+    IMAGE_NAME=$2
+    EXTENSION=$3
 
-    MACHINE=$MACHINE ./bb $STEP | tee -a build.log
+    REAL_NAME=`echo $IMAGE_NAME | sed 's/^[^-]\+-//'`
+
+    # Build the step
+    MACHINE=$MACHINE ./bb ${IMAGE_NAME}-image | tee -a build.log
 
     # The return value of `./bb` got hidden by `tee`. Bring it back.
     # Get the return value
     ret=${PIPESTATUS[0]}
     # Surface the value, the "-e" bash flag will pick up on any error
     ( exit $ret )
+
+    SOURCE=tmp-glibc/deploy/images/${MACHINE}/${IMAGE_NAME}-image-${MACHINE}
+    TARGET=${BUILD_USER}@${HOST_IP}:${ALL_BUILDS_SUBDIR_NAME}/${BUILD_DIR}/
+
+    # Transfer image and give it the expected name
+    if [ -f ${SOURCE}.${EXTENSION} ]; then
+	if [ "$IMAGE_NAME" = "xenclient-installer-part2" ]; then
+	    scp ${SOURCE}.${EXTENSION} ${TARGET}/control.${EXTENSION}
+	else
+	    scp ${SOURCE}.${EXTENSION} ${TARGET}/${REAL_NAME}-rootfs.i686.${EXTENSION}
+	fi
+    fi
+
+    # Transfer additionnal files
+    if [ -d ${SOURCE} ]; then
+	scp -r ${SOURCE} ${TARGET}/${REAL_NAME}
+    fi
 }
 
 mkdir -p $BUILD_DIR
@@ -110,14 +131,16 @@ fi
 # Build
 mkdir -p build
 cd build
-build_step "xenclient-dom0"       "xenclient-initramfs-image"
-build_step "xenclient-stubdomain" "xenclient-stubdomain-initramfs-image"
-build_step "xenclient-dom0"       "xenclient-dom0-image"
-build_step "xenclient-uivm"       "xenclient-uivm-image"
-build_step "xenclient-ndvm"       "xenclient-ndvm-image"
+build_image "xenclient-dom0"       "xenclient-initramfs"            "cpio.gz"
+build_image "xenclient-stubdomain" "xenclient-stubdomain-initramfs" "cpio.gz"
+build_image "xenclient-dom0"       "xenclient-dom0"                 "xc.ext3.gz"
+build_image "xenclient-uivm"       "xenclient-uivm"                 "xc.ext3.vhd.gz"
+build_image "xenclient-ndvm"       "xenclient-ndvm"                 "xc.ext3.vhd.gz"
+build_image "xenclient-dom0"       "xenclient-installer"            "cpio.gz"
+build_image "xenclient-dom0"       "xenclient-installer-part2"      "tar.bz2"
 
 # Copy the build output
-scp -r build-output/* "${BUILD_USER}@${SUBNET_PREFIX}.${IP_C}.1:${ALL_BUILDS_SUBDIR_NAME}/${BUILD_DIR}/"
+#scp -r build-output/* "${BUILD_USER}@${SUBNET_PREFIX}.${IP_C}.1:${ALL_BUILDS_SUBDIR_NAME}/${BUILD_DIR}/"
 
 # The script may run in an "ssh -t -t" environment, that won't exit on its own
 set +e
