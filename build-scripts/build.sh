@@ -126,7 +126,94 @@ build_windows() {
     cd - >/dev/null
 }
 
+build_repository () {
+    WORKDIR="${ALL_BUILDS_DIRECTORY}/${BUILD_DIR}"
+
+    # For some reason, installer part2 is called "control"...
+    if [ ! -f ${WORKDIR}/control.tar.bz2 ]; then
+	ln -s xenclient-installer-part2-image-xenclient-dom0.tar.bz2 \
+	      ${WORKDIR}/control.tar.bz2
+    fi
+
+    local repository="$WORKDIR/repository/packages.main"
+
+    cat > manifest <<EOF
+control tarbz2 required control.tar.bz2 /
+dom0 ext3gz required dom0-rootfs.i686.xc.ext3.gz /
+uivm vhdgz required uivm-rootfs.i686.xc.ext3.vhd.gz /storage/uivm
+ndvm vhdgz required ndvm-rootfs.i686.xc.ext3.vhd.gz /storage/ndvm
+syncvm vhdgz optional syncvm-rootfs.i686.xc.ext3.vhd.gz /storage/syncvm
+file iso optional xc-tools.iso /storage/isos/xc-tools.iso
+EOF
+
+    mkdir -p "$repository"
+    echo -n > "$repository/XC-PACKAGES"
+
+    # Format of the manifest file is
+    # name format optional/required source_filename dest_path
+    while read l; do
+	local name=`echo "$l" | awk '{print $1}'`
+	local format=`echo "$l" | awk '{print $2}'`
+	local opt_req=`echo "$l" | awk '{print $3}'`
+	local src=`echo "$l" | awk '{print $4}'`
+	local dest=`echo "$l" | awk '{print $5}'`
+
+	if [ ! -e "$WORKDIR/$src" ] ; then
+	    if [ "$opt_req" = "required" ] ; then
+		echo "Error: Required file $src is missing"
+		exit 1
+	    fi
+
+	    echo "Optional file $src is missing: skipping"
+	    continue
+	fi
+
+	cp "$WORKDIR/$src" "$repository/$src"
+
+	local filesize=$( du -b $repository/$src | awk '{print $1}' )
+	local sha256sum=$( sha256sum $repository/$src | awk '{print $1}' )
+
+	echo "$name" "$filesize" "$sha256sum" "$format" \
+	     "$opt_req" "$src" "$dest" >> "${repository}/XC-PACKAGES"
+    done < manifest
+
+    PACKAGES_SHA256SUM=$(sha256sum "$repository/XC-PACKAGES" |
+				    awk '{print $1}')
+
+    set +o pipefail #fragile part
+
+    # Pad XC-REPOSITORY to 1 MB with blank lines. If this is changed, the
+    # repository-signing process will also need to change.
+    {
+	cat <<EOF
+xc:main
+pack:Base Pack
+product:OpenXT
+build:0
+version:6.0.0
+release:6.0.0
+upgrade-from:6.0.0
+packages:${PACKAGES_SHA256SUM}
+EOF
+	yes ""
+    } | head -c 1048576 > "$repository/XC-REPOSITORY"
+
+    set -o pipefail #end of fragile part
+
+#    "${CMD_DIR}/sign_repo.sh" \
+#	"$(resolve_path "$TOPDIR" "$REPO_DEV_SIGNING_CERT")" \
+#	"$(resolve_path "$TOPDIR" "$REPO_DEV_SIGNING_KEY")" \
+#	"$repository"
+}
+
+build_iso() {
+    true
+}
+
 build_container "01" "oe"
 build_container "02" "debian"
 build_container "03" "centos"
 build_windows   "04"
+
+build_repository
+build_iso
