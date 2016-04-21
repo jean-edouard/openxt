@@ -32,6 +32,7 @@ ALL_BUILDS_SUBDIR_NAME=%ALL_BUILDS_SUBDIR_NAME%
 HOST_IP=${SUBNET_PREFIX}.${IP_C}.1
 LOCAL_USER=`whoami`
 BUILD_PATH=`pwd`/openxt/build
+RSYNC="rsync -a --copy-links"
 
 cd ~/certs
 CERTS_PATH=`pwd`
@@ -95,15 +96,22 @@ build_image() {
     # Transfer image and give it the expected name
     if [ -f ${SOURCE}.${EXTENSION} ]; then
 	if [ "$IMAGE_NAME" = "xenclient-installer-part2" ]; then
-	    scp ${SOURCE}.${EXTENSION} ${TARGET}/control.${EXTENSION}
+	    $RSYNC ${SOURCE}.${EXTENSION} ${TARGET}/control.${EXTENSION}
+	    $RSYNC tmp-glibc/deploy/images/${MACHINE}/*.acm \
+		   tmp-glibc/deploy/images/${MACHINE}/tboot.gz \
+		   tmp-glibc/deploy/images/${MACHINE}/xen.gz \
+		   ${TARGET}/installer-extras/
+	    $RSYNC tmp-glibc/deploy/images/${MACHINE}/bzImage-xenclient-dom0.bin \
+		   ${TARGET}/installer-extras/vmlinuz
+	    $RSYNC /home/${LOCAL_USER}/certs ${TARGET}
 	else
-	    scp ${SOURCE}.${EXTENSION} ${TARGET}/${REAL_NAME}-rootfs.i686.${EXTENSION}
+	    $RSYNC ${SOURCE}.${EXTENSION} ${TARGET}/${REAL_NAME}-rootfs.i686.${EXTENSION}
 	fi
     fi
 
     # Transfer additionnal files
     if [ -d ${SOURCE} ]; then
-	scp -r ${SOURCE} ${TARGET}/${REAL_NAME}
+	$RSYNC ${SOURCE}/ ${TARGET}/${REAL_NAME}
     fi
 }
 

@@ -156,7 +156,7 @@ fi
 # When installing packages, do all at once to be faster.
 PKGS="lxc"
 #PKGS="$PKGS virtualbox" # Un-comment to setup a Windows VM
-PKGS="$PKGS bridge-utils libvirt-bin curl jq git" # lxc and misc
+PKGS="$PKGS bridge-utils libvirt-bin curl jq git genisoimage syslinux-utils"
 PKGS="$PKGS debootstrap" # Debian container
 PKGS="$PKGS librpm3 librpmbuild3 librpmio3 librpmsign1 libsqlite0 python-rpm \
 python-sqlite python-sqlitecachec python-support python-urlgrabber rpm \
