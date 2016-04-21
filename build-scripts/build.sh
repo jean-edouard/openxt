@@ -200,6 +200,14 @@ EOF
 
     set -o pipefail #end of fragile part
 
+    openssl smime -sign \
+	    -aes256 \
+	    -binary \
+	    -in "$repository/XC-REPOSITORY" \
+	    -out "$repository/XC-SIGNATURE" \
+	    -outform PEM \
+	    -signer "$WORKDIR/certs/dev-cacert.pem" \
+	    -inkey "$WORKDIR/certs/dev-cakey.pem"
 #    "${CMD_DIR}/sign_repo.sh" \
 #	"$(resolve_path "$TOPDIR" "$REPO_DEV_SIGNING_CERT")" \
 #	"$(resolve_path "$TOPDIR" "$REPO_DEV_SIGNING_KEY")" \
@@ -207,7 +215,26 @@ EOF
 }
 
 build_iso() {
-    true
+    WORKDIR="${ALL_BUILDS_DIRECTORY}/${BUILD_DIR}"
+
+    cd $WORKDIR
+    rm -rf repository/isolinux
+    cp -r installer/iso repository/isolinux
+    cp installer-extras/* repository/isolinux/
+    cp installer-rootfs.i686.cpio.gz repository/isolinux/rootfs.gz
+
+    genisoimage -o "openxt.iso" \
+		-b "isolinux/isolinux.bin" \
+		-c "isolinux/boot.cat" \
+		-no-emul-boot \
+		-boot-load-size 4 \
+		-boot-info-table \
+		-r \
+		-J \
+		-V "OpenXT-6.0.0" \
+		"repository"
+    isohybrid openxt.iso
+    cd - > /dev/null
 }
 
 build_container "01" "oe"
