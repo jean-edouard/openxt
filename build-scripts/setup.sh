@@ -156,7 +156,7 @@ fi
 # When installing packages, do all at once to be faster.
 PKGS="lxc"
 #PKGS="$PKGS virtualbox" # Un-comment to setup a Windows VM
-PKGS="$PKGS bridge-utils libvirt-bin curl jq git genisoimage syslinux-utils"
+PKGS="$PKGS bridge-utils libvirt-bin curl jq git genisoimage syslinux-utils openssl"
 PKGS="$PKGS debootstrap" # Debian container
 PKGS="$PKGS librpm3 librpmbuild3 librpmio3 librpmsign1 libsqlite0 python-rpm \
 python-sqlite python-sqlitecachec python-support python-urlgrabber rpm \
@@ -206,6 +206,20 @@ if [ ! -d "${BUILD_USER_HOME}"/ssh-key ]; then
     mkdir "${BUILD_USER_HOME}"/ssh-key
     ssh-keygen -N "" -t dsa -f "${BUILD_USER_HOME}"/ssh-key/openxt
     chown -R ${BUILD_USER}:${BUILD_USER} "${BUILD_USER_HOME}"/ssh-key
+fi
+
+# Create build certs
+if [ ! -d "${BUILD_USER_HOME}"/certificates ]; then
+    mkdir "${BUILD_USER_HOME}"/certificates
+    openssl genrsa -out "${BUILD_USER_HOME}"/certificates/prod-cakey.pem 2048
+    openssl genrsa -out "${BUILD_USER_HOME}"/certificates/dev-cakey.pem 2048
+    openssl req -new -x509 -key "${BUILD_USER_HOME}"/certificates/prod-cakey.pem \
+	    -out "${BUILD_USER_HOME}"/certificates/prod-cacert.pem -days 1095 \
+	    -subj "/C=US/ST=Massachusetts/L=Boston/O=OpenXT/OU=OpenXT/CN=openxt.org"
+    openssl req -new -x509 -key "${BUILD_USER_HOME}"/certificates/dev-cakey.pem \
+	    -out "${BUILD_USER_HOME}"/certificates/dev-cacert.pem -days 1095 \
+	    -subj "/C=US/ST=Massachusetts/L=Boston/O=OpenXT/OU=OpenXT/CN=openxt.org"
+    chown -R ${BUILD_USER}:${BUILD_USER} "${BUILD_USER_HOME}"/certificates
 fi
 
 # Make up a network range ${SUBNET_PREFIX}.(150 + uid % 100).0
@@ -272,11 +286,11 @@ chown ${BUILD_USER}:${BUILD_USER} ${BUILD_USER_HOME}/fetch.sh
 LXC_PATH=`lxc-config lxc.lxcpath`
 
 setup_container() {
-    NUMBER=$1           # 01
-    NAME=$2             # oe
-    TEMPLATE=$3         # debian
-    MIRROR=$4           # http://httpredir.debian.org/debian
-    TEMPLATE_OPTIONS=$5 # --arch i386 --release squeeze
+    local NUMBER=$1           # 01
+    local NAME=$2             # oe
+    local TEMPLATE=$3         # debian
+    local MIRROR=$4           # http://httpredir.debian.org/debian
+    local TEMPLATE_OPTIONS=$5 # --arch i386 --release squeeze
 
     # Skip setup if the container already exists
     if [ `lxc-ls | grep ${BUILD_USER}-${NAME}` ]; then
@@ -300,6 +314,8 @@ lxc.network.hwaddr = ${MAC_PREFIX}:${MAC_E}:${NUMBER}
 lxc.network.ipv4 = 0.0.0.0/24
 EOF
 
+    local ROOTFS=${LXC_PATH}/${BUILD_USER}-${NAME}/rootfs
+
     echo "Configuring the ${NAME} container..."
     #mount -o bind /dev ${LXC_PATH}/${BUILD_USER}-${NAME}/rootfs/dev
 
@@ -307,7 +323,7 @@ EOF
     cat ${NAME}/setup.sh | \
         sed "s|\%MIRROR\%|${MIRROR}|" | \
         sed "s|\%CONTAINER_USER\%|${CONTAINER_USER}|" | \
-        chroot ${LXC_PATH}/${BUILD_USER}-${NAME}/rootfs /bin/bash -e
+        chroot ${ROOTFS} /bin/bash -e
 
     # If the in-container setup script failed, check our configuration to see
     # whether to destroy the container so that it can be recreated and setup
@@ -324,21 +340,23 @@ EOF
 
     #umount ${LXC_PATH}/${BUILD_USER}-${NAME}/rootfs/dev
 
-    # Important:
-    # We expect the container-specific setup.sh script to create /home/${CONTAINER_USER},
-    #  as well as authorized_keys, id_dsa.pub and known_hosts under /home/${CONTAINER_USER}/.ssh
-    # We can't create those files here, since we don't want to figure out the user ID to chown to.
+    # Find the UID and GID of CONTAINER_USER
+    local cpasswd=`grep "^${CONTAINER_USER}:" ${ROOTFS}/etc/passwd`
+    local cuid=`echo $cpasswd | cut -d ':' -f 3`
+    local cgid=`echo $cpasswd | cut -d ':' -f 4`
 
     # Allow the host to SSH to the container
     cat "${BUILD_USER_HOME}"/ssh-key/openxt.pub \
-        >> ${LXC_PATH}/${BUILD_USER}-${NAME}/rootfs/home/${CONTAINER_USER}/.ssh/authorized_keys
+        >> ${ROOTFS}/home/${CONTAINER_USER}/.ssh/authorized_keys
+    chown ${cuid}:${guid} ${ROOTFS}/home/${CONTAINER_USER}/.ssh/authorized_keys
 
     # Allow the container to SSH to the host
-    cat ${LXC_PATH}/${BUILD_USER}-${NAME}/rootfs/home/${CONTAINER_USER}/.ssh/id_dsa.pub \
+    cat ${ROOTFS}/home/${CONTAINER_USER}/.ssh/id_dsa.pub \
         >> "${BUILD_USER_HOME}"/.ssh/authorized_keys
 
     ssh-keyscan -H ${SUBNET_PREFIX}.${IP_C}.1 \
-        >> ${LXC_PATH}/${BUILD_USER}-${NAME}/rootfs/home/${CONTAINER_USER}/.ssh/known_hosts
+		>> ${ROOTFS}/home/${CONTAINER_USER}/.ssh/known_hosts
+    chown ${cuid}:${guid} ${ROOTFS}/home/${CONTAINER_USER}/.ssh/known_hosts
 
     # Add config bits to easily ssh to the container
     cat >> "${BUILD_USER_HOME}/.ssh/config" <<EOF
@@ -348,6 +366,11 @@ Host ${NAME}
         IdentityFile ~/ssh-key/openxt
 
 EOF
+
+    # Copy the build certificates into the container for signing build bits
+    cp -r "${BUILD_USER_HOME}"/certificates \
+       ${ROOTFS}/home/${CONTAINER_USER}/certs
+    chown -R ${cuid}:${guid} ${ROOTFS}/home/${CONTAINER_USER}/certs
 
     # Copy the build script for that container to the user home directory
     mkdir -p "${BUILD_USER_HOME}"/${NAME}
