@@ -348,7 +348,7 @@ EOF
     # Allow the host to SSH to the container
     cat "${BUILD_USER_HOME}"/ssh-key/openxt.pub \
         >> ${ROOTFS}/home/${CONTAINER_USER}/.ssh/authorized_keys
-    chown ${cuid}:${guid} ${ROOTFS}/home/${CONTAINER_USER}/.ssh/authorized_keys
+    chown ${cuid}:${cgid} ${ROOTFS}/home/${CONTAINER_USER}/.ssh/authorized_keys
 
     # Allow the container to SSH to the host
     cat ${ROOTFS}/home/${CONTAINER_USER}/.ssh/id_dsa.pub \
@@ -356,7 +356,7 @@ EOF
 
     ssh-keyscan -H ${SUBNET_PREFIX}.${IP_C}.1 \
 		>> ${ROOTFS}/home/${CONTAINER_USER}/.ssh/known_hosts
-    chown ${cuid}:${guid} ${ROOTFS}/home/${CONTAINER_USER}/.ssh/known_hosts
+    chown ${cuid}:${cgid} ${ROOTFS}/home/${CONTAINER_USER}/.ssh/known_hosts
 
     # Add config bits to easily ssh to the container
     cat >> "${BUILD_USER_HOME}/.ssh/config" <<EOF
@@ -370,7 +370,7 @@ EOF
     # Copy the build certificates into the container for signing build bits
     cp -r "${BUILD_USER_HOME}"/certificates \
        ${ROOTFS}/home/${CONTAINER_USER}/certs
-    chown -R ${cuid}:${guid} ${ROOTFS}/home/${CONTAINER_USER}/certs
+    chown -R ${cuid}:${cgid} ${ROOTFS}/home/${CONTAINER_USER}/certs
 
     # Copy the build script for that container to the user home directory
     mkdir -p "${BUILD_USER_HOME}"/${NAME}
