@@ -106,6 +106,8 @@ IP_C=$(( 150 + ${BUILD_USER_ID} % 100 ))
 ALL_BUILDS_SUBDIR_NAME="xt-builds"
 ALL_BUILDS_DIRECTORY="${BUILD_USER_HOME}/${ALL_BUILDS_SUBDIR_NAME}"
 
+source version
+
 mkdir -p $ALL_BUILDS_DIRECTORY
 
 # If no ID was speficied, use the date. A new build directory will be created.
@@ -257,10 +259,10 @@ EOF
 xc:main
 pack:Base Pack
 product:OpenXT
-build:0
-version:6.0.0
-release:6.0.0
-upgrade-from:6.0.0
+build:${BUILD_ID}
+version:${VERSION}
+release:${RELEASE}
+upgrade-from:${UPGRADEABLE_RELEASES}
 packages:${PACKAGES_SHA256SUM}
 EOF
         yes ""
@@ -286,6 +288,8 @@ build_iso() {
     cp -r installer/iso repository/isolinux
     cp installer-extras/* repository/isolinux/
     cp installer-rootfs.i686.cpio.gz repository/isolinux/rootfs.gz
+    sed -i -re "s|[$]OPENXT_VERSION|$VERSION|g" repository/isolinux/bootmsg.txt
+    sed -i -re "s|[$]OPENXT_BUILD_ID|$BUILD_ID|g" repository/isolinux/bootmsg.txt
 
     genisoimage -o "openxt.iso" \
                 -b "isolinux/isolinux.bin" \
