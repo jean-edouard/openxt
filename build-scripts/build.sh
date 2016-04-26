@@ -36,6 +36,8 @@
 #   To change just the OE branch, please edit oe/build.sh
 BRANCH="master"
 
+BUILD_ID=
+
 BUILD_DIR=""
 
 NO_OE=
@@ -47,8 +49,9 @@ NO_WINDOWS=
 
 usage() {
     cat >&2 <<EOF
-usage: $0 [-h] [-b branch] [-n build] [-O] [-D] [-C] [-W]
-  -h: help
+usage: $0 [-h] [-i ID] [-b branch] [-n build] [-O] [-D] [-C] [-W]
+  -h: Help
+  -i: Build ID (overrides -n)
   -b: Branch to build
   -n: Continue the specified build instead of creating a new one
   -O: Do not build OpenEmbedded (OpenXT core), not recommended
@@ -58,16 +61,17 @@ usage: $0 [-h] [-b branch] [-n build] [-O] [-D] [-C] [-W]
 
  Note: if a container/VM didn't get setup, it will get skipped,
    even when not explicitely excluded
-
- Example (defaults): $0 -b master
 EOF
     exit $1
 }
 
-while getopts "hb:n:ODCW" opt; do
+while getopts "hi:b:n:ODCW" opt; do
     case $opt in
         h)
             usage 0
+            ;;
+        i)
+            BUILD_ID=${OPTARG}
             ;;
         b)
             BRANCH="${OPTARG}"
@@ -103,6 +107,14 @@ ALL_BUILDS_SUBDIR_NAME="xt-builds"
 ALL_BUILDS_DIRECTORY="${BUILD_USER_HOME}/${ALL_BUILDS_SUBDIR_NAME}"
 
 mkdir -p $ALL_BUILDS_DIRECTORY
+
+# If no ID was speficied, use the date. A new build directory will be created.
+# If an ID was specified, use it also for the build directory name.
+if [ -z $BUILD_ID ]; then
+    BUILD_ID=$(date +%y%m%d)
+else
+    BUILD_DIR=$BUILD_ID
+fi
 
 # If no build number was specified, create a new one
 if [ -z $BUILD_DIR ] ; then
@@ -150,6 +162,7 @@ build_container() {
             -e "s|\%BUILD_DIR\%|${BUILD_DIR}|" \
             -e "s|\%SUBNET_PREFIX\%|${SUBNET_PREFIX}|" \
             -e "s|\%IP_C\%|${IP_C}|" \
+            -e "s|\%BUILD_ID\%|${BUILD_ID}|" \
             -e "s|\%BRANCH\%|${BRANCH}|" \
             -e "s|\%ALL_BUILDS_SUBDIR_NAME\%|${ALL_BUILDS_SUBDIR_NAME}|" |\
         ssh -t -t -i "${BUILD_USER_HOME}"/ssh-key/openxt \
@@ -173,6 +186,7 @@ build_windows() {
     # Build
     cd windows
     ./build.sh "$NUMBER" \
+               "$BUILD_ID" \
                "$BRANCH" \
                "$BUILD_USER" \
                "${SUBNET_PREFIX}.${IP_C}" \
@@ -185,8 +199,8 @@ build_repository () {
 
     # For some reason, installer part2 is called "control"...
     if [ ! -f ${WORKDIR}/control.tar.bz2 ]; then
-	ln -s xenclient-installer-part2-image-xenclient-dom0.tar.bz2 \
-	      ${WORKDIR}/control.tar.bz2
+        ln -s xenclient-installer-part2-image-xenclient-dom0.tar.bz2 \
+              ${WORKDIR}/control.tar.bz2
     fi
 
     local repository="$WORKDIR/repository/packages.main"
@@ -206,40 +220,40 @@ EOF
     # Format of the manifest file is
     # name format optional/required source_filename dest_path
     while read l; do
-	local name=`echo "$l" | awk '{print $1}'`
-	local format=`echo "$l" | awk '{print $2}'`
-	local opt_req=`echo "$l" | awk '{print $3}'`
-	local src=`echo "$l" | awk '{print $4}'`
-	local dest=`echo "$l" | awk '{print $5}'`
+        local name=`echo "$l" | awk '{print $1}'`
+        local format=`echo "$l" | awk '{print $2}'`
+        local opt_req=`echo "$l" | awk '{print $3}'`
+        local src=`echo "$l" | awk '{print $4}'`
+        local dest=`echo "$l" | awk '{print $5}'`
 
-	if [ ! -e "$WORKDIR/$src" ] ; then
-	    if [ "$opt_req" = "required" ] ; then
-		echo "Error: Required file $src is missing"
-		exit 1
-	    fi
+        if [ ! -e "$WORKDIR/$src" ] ; then
+            if [ "$opt_req" = "required" ] ; then
+                echo "Error: Required file $src is missing"
+                exit 1
+            fi
 
-	    echo "Optional file $src is missing: skipping"
-	    continue
-	fi
+            echo "Optional file $src is missing: skipping"
+            continue
+        fi
 
-	cp "$WORKDIR/$src" "$repository/$src"
+        cp "$WORKDIR/$src" "$repository/$src"
 
-	local filesize=$( du -b $repository/$src | awk '{print $1}' )
-	local sha256sum=$( sha256sum $repository/$src | awk '{print $1}' )
+        local filesize=$( du -b $repository/$src | awk '{print $1}' )
+        local sha256sum=$( sha256sum $repository/$src | awk '{print $1}' )
 
-	echo "$name" "$filesize" "$sha256sum" "$format" \
-	     "$opt_req" "$src" "$dest" >> "${repository}/XC-PACKAGES"
+        echo "$name" "$filesize" "$sha256sum" "$format" \
+             "$opt_req" "$src" "$dest" >> "${repository}/XC-PACKAGES"
     done < manifest
 
     PACKAGES_SHA256SUM=$(sha256sum "$repository/XC-PACKAGES" |
-				    awk '{print $1}')
+                                    awk '{print $1}')
 
     set +o pipefail #fragile part
 
     # Pad XC-REPOSITORY to 1 MB with blank lines. If this is changed, the
     # repository-signing process will also need to change.
     {
-	cat <<EOF
+        cat <<EOF
 xc:main
 pack:Base Pack
 product:OpenXT
@@ -249,23 +263,19 @@ release:6.0.0
 upgrade-from:6.0.0
 packages:${PACKAGES_SHA256SUM}
 EOF
-	yes ""
+        yes ""
     } | head -c 1048576 > "$repository/XC-REPOSITORY"
 
     set -o pipefail #end of fragile part
 
     openssl smime -sign \
-	    -aes256 \
-	    -binary \
-	    -in "$repository/XC-REPOSITORY" \
-	    -out "$repository/XC-SIGNATURE" \
-	    -outform PEM \
-	    -signer "$WORKDIR/certs/dev-cacert.pem" \
-	    -inkey "$WORKDIR/certs/dev-cakey.pem"
-#    "${CMD_DIR}/sign_repo.sh" \
-#	"$(resolve_path "$TOPDIR" "$REPO_DEV_SIGNING_CERT")" \
-#	"$(resolve_path "$TOPDIR" "$REPO_DEV_SIGNING_KEY")" \
-#	"$repository"
+            -aes256 \
+            -binary \
+            -in "$repository/XC-REPOSITORY" \
+            -out "$repository/XC-SIGNATURE" \
+            -outform PEM \
+            -signer "$WORKDIR/certs/dev-cacert.pem" \
+            -inkey "$WORKDIR/certs/dev-cakey.pem"
 }
 
 build_iso() {
@@ -278,15 +288,15 @@ build_iso() {
     cp installer-rootfs.i686.cpio.gz repository/isolinux/rootfs.gz
 
     genisoimage -o "openxt.iso" \
-		-b "isolinux/isolinux.bin" \
-		-c "isolinux/boot.cat" \
-		-no-emul-boot \
-		-boot-load-size 4 \
-		-boot-info-table \
-		-r \
-		-J \
-		-V "OpenXT-6.0.0" \
-		"repository"
+                -b "isolinux/isolinux.bin" \
+                -c "isolinux/boot.cat" \
+                -no-emul-boot \
+                -boot-load-size 4 \
+                -boot-info-table \
+                -r \
+                -J \
+                -V "OpenXT-6.0.0" \
+                "repository"
     isohybrid openxt.iso
     cd - > /dev/null
 }

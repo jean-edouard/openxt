@@ -25,6 +25,7 @@ set -e
 BUILD_USER=%BUILD_USER%
 BUILD_DIR=%BUILD_DIR%
 IP_C=%IP_C%
+BUILD_ID=%BUILD_ID%
 BRANCH=%BRANCH%
 SUBNET_PREFIX=%SUBNET_PREFIX%
 ALL_BUILDS_SUBDIR_NAME=%ALL_BUILDS_SUBDIR_NAME%
@@ -91,7 +92,7 @@ git clone -b $BRANCH $GIT_MIRROR/sync-server.git
 git clone -b $BRANCH $GIT_MIRROR/sync-ui-helper.git
 cd ..
 export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/u01/app/oracle/product/11.2.0/xe/lib"
-./do_sync_xt.sh ${OPENXT_DIR}
+./do_sync_xt.sh -i $BUILD_ID ${OPENXT_DIR}
 cd ..
 cp openxt/out/* repo/RPMS
 

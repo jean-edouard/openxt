@@ -25,6 +25,7 @@ set -e
 BUILD_USER=%BUILD_USER%
 BUILD_DIR=%BUILD_DIR%
 IP_C=%IP_C%
+BUILD_ID=%BUILD_ID%
 BRANCH=%BRANCH%
 SUBNET_PREFIX=%SUBNET_PREFIX%
 ALL_BUILDS_SUBDIR_NAME=%ALL_BUILDS_SUBDIR_NAME%
@@ -58,7 +59,7 @@ OPENXT_GIT_PROTOCOL="git"
 OPENXT_BRANCH="$BRANCH"
 OPENXT_TAG="$BRANCH"
 
-XENCLIENT_BUILD = "openxt-dev--master"
+XENCLIENT_BUILD = "${BUILD_ID}"
 XENCLIENT_BUILD_DATE = "`date +'%T %D'`"
 XENCLIENT_BUILD_BRANCH = "${BRANCH}"
 XENCLIENT_VERSION = "$VERSION"
@@ -95,23 +96,23 @@ build_image() {
 
     # Transfer image and give it the expected name
     if [ -f ${SOURCE}.${EXTENSION} ]; then
-	if [ "$IMAGE_NAME" = "xenclient-installer-part2" ]; then
-	    $RSYNC ${SOURCE}.${EXTENSION} ${TARGET}/control.${EXTENSION}
-	    $RSYNC tmp-glibc/deploy/images/${MACHINE}/*.acm \
-		   tmp-glibc/deploy/images/${MACHINE}/tboot.gz \
-		   tmp-glibc/deploy/images/${MACHINE}/xen.gz \
-		   ${TARGET}/installer-extras/
-	    $RSYNC tmp-glibc/deploy/images/${MACHINE}/bzImage-xenclient-dom0.bin \
-		   ${TARGET}/installer-extras/vmlinuz
-	    $RSYNC /home/${LOCAL_USER}/certs ${TARGET}
-	else
-	    $RSYNC ${SOURCE}.${EXTENSION} ${TARGET}/${REAL_NAME}-rootfs.i686.${EXTENSION}
-	fi
+        if [ "$IMAGE_NAME" = "xenclient-installer-part2" ]; then
+            $RSYNC ${SOURCE}.${EXTENSION} ${TARGET}/control.${EXTENSION}
+            $RSYNC tmp-glibc/deploy/images/${MACHINE}/*.acm \
+                   tmp-glibc/deploy/images/${MACHINE}/tboot.gz \
+                   tmp-glibc/deploy/images/${MACHINE}/xen.gz \
+                   ${TARGET}/installer-extras/
+            $RSYNC tmp-glibc/deploy/images/${MACHINE}/bzImage-xenclient-dom0.bin \
+                   ${TARGET}/installer-extras/vmlinuz
+            $RSYNC /home/${LOCAL_USER}/certs ${TARGET}
+        else
+            $RSYNC ${SOURCE}.${EXTENSION} ${TARGET}/${REAL_NAME}-rootfs.i686.${EXTENSION}
+        fi
     fi
 
     # Transfer additionnal files
     if [ -d ${SOURCE} ]; then
-	$RSYNC ${SOURCE}/ ${TARGET}/${REAL_NAME}
+        $RSYNC ${SOURCE}/ ${TARGET}/${REAL_NAME}
     fi
 }
 
