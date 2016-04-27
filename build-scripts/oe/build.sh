@@ -64,7 +64,7 @@ XENCLIENT_BUILD_DATE = "`date +'%T %D'`"
 XENCLIENT_BUILD_BRANCH = "${BRANCH}"
 XENCLIENT_VERSION = "$VERSION"
 XENCLIENT_RELEASE = "$RELEASE"
-XENCLIENT_TOOLS = "${XC_TOOLS_MAJOR}.${XC_TOOLS_MINOR}.${XC_TOOLS_MICRO}.${BUILD_ID}"
+XENCLIENT_TOOLS = "$XENCLIENT_TOOLS"
 
 # dir for generated deb packages
 XCT_DEB_PKGS_DIR := "${BUILD_PATH}/xct_deb_packages"
@@ -91,29 +91,51 @@ build_image() {
     # Surface the value, the "-e" bash flag will pick up on any error
     ( exit $ret )
 
-    SOURCE=tmp-glibc/deploy/images/${MACHINE}/${IMAGE_NAME}-image-${MACHINE}
+    SOURCE_BASE=tmp-glibc/deploy/images/${MACHINE}/${IMAGE_NAME}-image
+    SOURCE_IMAGE=${SOURCE_BASE}-${MACHINE}.${EXTENSION}
+    SOURCE_LICENSES=${SOURCE_BASE}-licences.csv
+    SOURCE_EXTRAS=${SOURCE_BASE}-${MACHINE}
     TARGET=${BUILD_USER}@${HOST_IP}:${ALL_BUILDS_SUBDIR_NAME}/${BUILD_DIR}/
 
     # Transfer image and give it the expected name
-    if [ -f ${SOURCE}.${EXTENSION} ]; then
+    if [ -f ${SOURCE_IMAGE} ]; then
         if [ "$IMAGE_NAME" = "xenclient-installer-part2" ]; then
-            $RSYNC ${SOURCE}.${EXTENSION} ${TARGET}/control.${EXTENSION}
+            $RSYNC ${SOURCE_IMAGE} ${TARGET}/raw/control.${EXTENSION}
             $RSYNC tmp-glibc/deploy/images/${MACHINE}/*.acm \
                    tmp-glibc/deploy/images/${MACHINE}/tboot.gz \
                    tmp-glibc/deploy/images/${MACHINE}/xen.gz \
-                   ${TARGET}/installer-extras/
+                   ${TARGET}/netboot/
             $RSYNC tmp-glibc/deploy/images/${MACHINE}/bzImage-xenclient-dom0.bin \
-                   ${TARGET}/installer-extras/vmlinuz
-            $RSYNC /home/${LOCAL_USER}/certs ${TARGET}
+                   ${TARGET}/netboot/vmlinuz
         else
-            $RSYNC ${SOURCE}.${EXTENSION} ${TARGET}/${REAL_NAME}-rootfs.i686.${EXTENSION}
+            $RSYNC ${SOURCE_IMAGE} ${TARGET}/raw/${REAL_NAME}-rootfs.i686.${EXTENSION}
         fi
     fi
 
-    # Transfer additionnal files
-    if [ -d ${SOURCE} ]; then
-        $RSYNC ${SOURCE}/ ${TARGET}/${REAL_NAME}
+    # Transfer licenses
+    if [ -f ${SOURCE_LICENSES} ]; then
+        $RSYNC ${SOURCE_LICENSES} ${TARGET}/licenses/
     fi
+
+    # Transfer additionnal files
+    if [ -d ${SOURCE_EXTRAS} ]; then
+        $RSYNC ${SOURCE_EXTRAS}/ ${TARGET}/${REAL_NAME}
+    fi
+}
+
+collect_logs() {
+    TARGET=${BUILD_USER}@${HOST_IP}:${ALL_BUILDS_SUBDIR_NAME}/${BUILD_DIR}/
+
+    mkdir -p logs
+
+    echo "Collecting build logs..."
+    ls tmp-glibc/work/*/*/*/temp/log.do_* | tar -cjf logs/build_logs.tar.bz2 --files-from=-
+    echo "Collecting sigdata..."
+    find tmp-glibc/stamps -name "*.sigdata.*" | tar -cjf logs/sigdata.tar.bz2 --files-from=-
+    echo "Collecting buildstats..."
+    tar -cjf logs/buildstats.tar.bz2 tmp-glibc/buildstats
+
+    $RSYNC logs ${TARGET}/logs
 }
 
 mkdir -p $BUILD_DIR
@@ -121,7 +143,7 @@ cd $BUILD_DIR
 
 if [ ! -d openxt ] ; then
     # Clone main repos
-    git clone -b ${BRANCH} git://${HOST_IP}/${BUILD_USER}/openxt.git
+    git clone -b disag2 https://github.com/jean-edouard/openxt.git
     cd openxt
 
     # Fetch "upstream" layers
@@ -148,8 +170,7 @@ build_image "xenclient-ndvm"       "xenclient-ndvm"                 "xc.ext3.vhd
 build_image "xenclient-dom0"       "xenclient-installer"            "cpio.gz"
 build_image "xenclient-dom0"       "xenclient-installer-part2"      "tar.bz2"
 
-# Copy the build output
-#scp -r build-output/* "${BUILD_USER}@${SUBNET_PREFIX}.${IP_C}.1:${ALL_BUILDS_SUBDIR_NAME}/${BUILD_DIR}/"
+collect_logs
 
 # The script may run in an "ssh -t -t" environment, that won't exit on its own
 set +e

@@ -141,9 +141,10 @@ if ! mkdir -p "${BUILD_DIR_PATH}" ; then
     exit 1
 fi
 
-./fetch.sh
+./fetch.sh | tee "${BUILD_DIR_PATH}/git_heads"
 
 echo "Running build: ${BUILD_DIR}"
+mkdir -p "${BUILD_DIR_PATH}/raw"
 
 build_container() {
     NUMBER=$1           # 01
@@ -196,14 +197,35 @@ build_windows() {
     cd - >/dev/null
 }
 
-build_repository () {
+build_tools_iso() {
     WORKDIR="${ALL_BUILDS_DIRECTORY}/${BUILD_DIR}"
 
-    # For some reason, installer part2 is called "control"...
-    if [ ! -f ${WORKDIR}/control.tar.bz2 ]; then
-        ln -s xenclient-installer-part2-image-xenclient-dom0.tar.bz2 \
-              ${WORKDIR}/control.tar.bz2
+    cd $WORKDIR
+    mkdir -p raw
+    rm -rf iso_tmp
+    mkdir -p iso_tmp/linux
+    if [ -r windows/xctools-iso.zip ]; then
+	unzip windows/xctools-iso.zip -d iso_tmp
     fi
+    if [ -d debian ]; then
+	ln -s ../../debian iso_tmp/linux/debian
+    fi
+    if [ -d rpms ]; then
+	ln -s ../../rpms iso_tmp/linux/rpms
+    fi
+    genisoimage -o "raw/xc-tools.iso" \
+		-R \
+		-J \
+		-joliet-long \
+		-input-charset utf8 \
+		-V "OpenXT-tools" \
+		-f \
+		iso_tmp
+    rm -rf iso_tmp
+}
+
+build_repository () {
+    WORKDIR="${ALL_BUILDS_DIRECTORY}/${BUILD_DIR}"
 
     local repository="$WORKDIR/repository/packages.main"
 
@@ -228,7 +250,7 @@ EOF
         local src=`echo "$l" | awk '{print $4}'`
         local dest=`echo "$l" | awk '{print $5}'`
 
-        if [ ! -e "$WORKDIR/$src" ] ; then
+        if [ ! -e "$WORKDIR/raw/$src" ] ; then
             if [ "$opt_req" = "required" ] ; then
                 echo "Error: Required file $src is missing"
                 exit 1
@@ -238,7 +260,7 @@ EOF
             continue
         fi
 
-        cp "$WORKDIR/$src" "$repository/$src"
+        cp "$WORKDIR/raw/$src" "$repository/$src"
 
         local filesize=$( du -b $repository/$src | awk '{print $1}' )
         local sha256sum=$( sha256sum $repository/$src | awk '{print $1}' )
@@ -276,22 +298,25 @@ EOF
             -in "$repository/XC-REPOSITORY" \
             -out "$repository/XC-SIGNATURE" \
             -outform PEM \
-            -signer "$WORKDIR/certs/dev-cacert.pem" \
-            -inkey "$WORKDIR/certs/dev-cakey.pem"
+            -signer "$BUILD_USER_HOME/certificates/dev-cacert.pem" \
+            -inkey "$BUILD_USER_HOME/certificates/dev-cakey.pem"
 }
 
 build_iso() {
     WORKDIR="${ALL_BUILDS_DIRECTORY}/${BUILD_DIR}"
 
     cd $WORKDIR
-    rm -rf repository/isolinux
-    cp -r installer/iso repository/isolinux
-    cp installer-extras/* repository/isolinux/
-    cp installer-rootfs.i686.cpio.gz repository/isolinux/rootfs.gz
-    sed -i -re "s|[$]OPENXT_VERSION|$VERSION|g" repository/isolinux/bootmsg.txt
-    sed -i -re "s|[$]OPENXT_BUILD_ID|$BUILD_ID|g" repository/isolinux/bootmsg.txt
+    mkdir -p iso
+    rm -rf iso_tmp
+    mkdir -p iso_tmp/isolinux
+    cp -rf netboot/* iso_tmp/isolinux/
+    cp -rf installer/iso/* iso_tmp/isolinux/
+    ln -s ../repository/packages.main iso_tmp/packages.main
+    ln -s ../../raw/installer-rootfs.i686.cpio.gz iso_tmp/isolinux/rootfs.gz
+    sed -i -re "s|[$]OPENXT_VERSION|$VERSION|g" iso_tmp/isolinux/bootmsg.txt
+    sed -i -re "s|[$]OPENXT_BUILD_ID|$BUILD_ID|g" iso_tmp/isolinux/bootmsg.txt
 
-    genisoimage -o "openxt.iso" \
+    genisoimage -o "iso/installer.iso" \
                 -b "isolinux/isolinux.bin" \
                 -c "isolinux/boot.cat" \
                 -no-emul-boot \
@@ -299,16 +324,39 @@ build_iso() {
                 -boot-info-table \
                 -r \
                 -J \
-                -V "OpenXT-6.0.0" \
-                "repository"
-    isohybrid openxt.iso
+                -V "OpenXT-${VERSION}" \
+		-f \
+                "iso_tmp"
+    rm -rf iso_tmp
+    isohybrid iso/installer.iso
     cd - > /dev/null
 }
 
-[ -z $NO_OE ]      && build_container "01" "oe"
-[ -z $NO_DEBIAN ]  && build_container "02" "debian"
-[ -z $NO_CENTOS ]  && build_container "03" "centos"
-[ -z $NO_WINDOWS ] && build_windows   "04"
+build_finalize() {
+    WORKDIR="${ALL_BUILDS_DIRECTORY}/${BUILD_DIR}"
 
+    cd $WORKDIR
+
+    # Build info file (should be safe to remove)
+    cat > info <<EOF
+installer: iso/installer.iso
+netboot: netboot
+ota-update: update/update.tar
+repository: repository
+EOF
+
+    # Build the update tarball
+    mkdir -p "update"
+    tar -C "repository" -cf "update/update.tar" packages.main
+
+}
+
+#[ -z $NO_OE ]      && build_container "01" "oe"
+#[ -z $NO_DEBIAN ]  && build_container "02" "debian"
+#[ -z $NO_CENTOS ]  && build_container "03" "centos"
+#[ -z $NO_WINDOWS ] && build_windows   "04"
+
+build_tools_iso
 build_repository
 build_iso
+build_finalize

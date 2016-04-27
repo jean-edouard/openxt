@@ -67,6 +67,7 @@ for i in `ls -d pv-linux-drivers/openxt-*`; do
 
     # Remove package
     sudo dkms remove -m ${tool} -v 1.0 --all || true
+    sudo rm -rf /var/lib/dkms/${tool}
     sudo rm -rf /usr/src/${tool}-1.0
 
     # Fetch package
