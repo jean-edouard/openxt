@@ -141,7 +141,9 @@ if ! mkdir -p "${BUILD_DIR_PATH}" ; then
     exit 1
 fi
 
-./fetch.sh | tee "${BUILD_DIR_PATH}/git_heads"
+echo "Fetching git mirrors..."
+./fetch.sh > "${BUILD_DIR_PATH}/git_heads"
+echo "Done"
 
 echo "Running build: ${BUILD_DIR}"
 mkdir -p "${BUILD_DIR_PATH}/raw"
@@ -205,7 +207,7 @@ build_tools_iso() {
     rm -rf iso_tmp
     mkdir -p iso_tmp/linux
     if [ -r windows/xctools-iso.zip ]; then
-	unzip windows/xctools-iso.zip -d iso_tmp
+	unzip -q windows/xctools-iso.zip -d iso_tmp
     fi
     if [ -d debian ]; then
 	ln -s ../../debian iso_tmp/linux/debian
@@ -213,6 +215,7 @@ build_tools_iso() {
     if [ -d rpms ]; then
 	ln -s ../../rpms iso_tmp/linux/rpms
     fi
+    echo "Creating xc-tools.iso..."
     genisoimage -o "raw/xc-tools.iso" \
 		-R \
 		-J \
@@ -220,7 +223,9 @@ build_tools_iso() {
 		-input-charset utf8 \
 		-V "OpenXT-tools" \
 		-f \
+		-quiet \
 		iso_tmp
+    echo "Done"
     rm -rf iso_tmp
 }
 
@@ -238,6 +243,7 @@ syncvm vhdgz optional syncvm-rootfs.i686.xc.ext3.vhd.gz /storage/syncvm
 file iso optional xc-tools.iso /storage/isos/xc-tools.iso
 EOF
 
+    echo "Creating the repository..."
     mkdir -p "$repository"
     echo -n > "$repository/XC-PACKAGES"
 
@@ -300,6 +306,7 @@ EOF
             -outform PEM \
             -signer "$BUILD_USER_HOME/certificates/dev-cacert.pem" \
             -inkey "$BUILD_USER_HOME/certificates/dev-cakey.pem"
+    echo "Done"
 }
 
 build_iso() {
@@ -316,6 +323,7 @@ build_iso() {
     sed -i -re "s|[$]OPENXT_VERSION|$VERSION|g" iso_tmp/isolinux/bootmsg.txt
     sed -i -re "s|[$]OPENXT_BUILD_ID|$BUILD_ID|g" iso_tmp/isolinux/bootmsg.txt
 
+    echo "Creating installer.iso..."
     genisoimage -o "iso/installer.iso" \
                 -b "isolinux/isolinux.bin" \
                 -c "isolinux/boot.cat" \
@@ -326,7 +334,9 @@ build_iso() {
                 -J \
                 -V "OpenXT-${VERSION}" \
 		-f \
+		-quiet \
                 "iso_tmp"
+    echo "Done"
     rm -rf iso_tmp
     isohybrid iso/installer.iso
     cd - > /dev/null

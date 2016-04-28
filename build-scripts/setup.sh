@@ -264,12 +264,14 @@ fi
 if [ ! -d ${GIT_ROOT_PATH}/${BUILD_USER} ]; then
     mkdir -p ${GIT_ROOT_PATH}/${BUILD_USER}
     cd ${GIT_ROOT_PATH}/${BUILD_USER}
+    echo "Mirroring the OpenXT repositories..."
     for repo in \
         $(curl -s "https://api.github.com/orgs/OpenXT/repos?per_page=100" | \
           jq '.[].name' | cut -d '"' -f 2 | sort -u)
     do
-        git clone --mirror https://github.com/OpenXT/${repo}.git
+        git clone --quiet --mirror https://github.com/OpenXT/${repo}.git
     done
+    echo "Done"
     cd - > /dev/null
     chown -R ${BUILD_USER}:${BUILD_USER} ${GIT_ROOT_PATH}/${BUILD_USER}
 fi
