@@ -1,0 +1,4 @@
+Add one file per layer unders the layers directory.
+Name the file XX-NAME, when XX is the priority (low number equals high priority).
+The syntax is the one line "REPO BRANCH",
+  where REPO can be "local", meaning it can be found in the local mirror.

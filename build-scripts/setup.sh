@@ -377,6 +377,7 @@ EOF
     # Copy the build script for that container to the user home directory
     mkdir -p "${BUILD_USER_HOME}"/${NAME}
     cp ${NAME}/build.sh "${BUILD_USER_HOME}"/${NAME}/
+    [ -d ${NAME}/build.d ] && cp -r ${NAME}/build.d "${BUILD_USER_HOME}"/${NAME}/
     chown -R ${BUILD_USER}:${BUILD_USER} "${BUILD_USER_HOME}"/${NAME}
 
     # Copy resolv.conf over for networking, shouldn't be needed

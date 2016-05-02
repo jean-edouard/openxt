@@ -129,7 +129,20 @@ if [ ! -d openxt ] ; then
     git submodule update
 
     # Clone OpenXT layers
-    git clone -b ${BRANCH} git://${HOST_IP}/${BUILD_USER}/xenclient-oe.git build/repos/xenclient-oe
+    if [ -d build.d/layers ]; then
+        for i in `ls -r build.d/layers/*`; do
+            local name=`echo $i | sed "s/^[^-]\+-//"`
+            read layer <$i
+            local repo=`echo $layer | cut -f 1`
+            local branch=`echo $layer | cut -f 2`
+            if [ $repo = "local" ]; then
+                repo="git://${HOST_IP}/${BUILD_USER}/${name}.git"
+            fi
+            git clone -b ${branch} "${repo}" build/repos/${name}
+            # The following line adds the layer to the top of the list
+            sed -i "/BBLAYERS.*=/a \ \ \${TOPDIR}/repos/${name} \\\\" build/conf/bblayers.conf
+        done
+    fi
 
     # Configure OpenXT
     setupoe
