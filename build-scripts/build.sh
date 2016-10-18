@@ -116,26 +116,32 @@ source version
 
 mkdir -p $ALL_BUILDS_DIRECTORY
 
-# If no ID was speficied, use the date. A new build directory will be created.
-# If an ID was specified, use it also for the build directory name.
-if [ -z $BUILD_ID ]; then
-    BUILD_ID=$(date +%y%m%d)
+# If an ID was specified and the directory was not:
+# if a directory with that name doesn't exist, use it;
+# otherwise use the ID as the root of the build directory name.
+if [ ! -z $BUILD_ID ] ; then
+    [ -d "${ALL_BUILDS_DIRECTORY}/$BUILD_ID" ] || BUILD_DIR=$BUILD_ID
+    BUILD_DIR_ROOT=$BUILD_ID
 else
-    BUILD_DIR=$BUILD_ID
+    # Use the build date as the default root for new build directories
+    BUILD_DIR_ROOT=$(date +%y%m%d)
 fi
 
-# If no build number was specified, create a new one
+# If no build directory was specified, create a new one.
 if [ -z $BUILD_DIR ] ; then
-    BUILD_DATE=$(date +%y%m%d)
-
     cd ${ALL_BUILDS_DIRECTORY}
     LAST_BUILD=0
-    if [[ -d "${BUILD_DATE}-1" ]]; then
-        LAST_BUILD=`ls -dvr ${BUILD_DATE}-* | head -1 | cut -d '-' -f 2`
+    if [[ -d "${BUILD_DIR_ROOT}-1" ]]; then
+        LAST_BUILD=`ls -dvr ${BUILD_DIR_ROOT}-* | head -1 | cut -d '-' -f 2`
     fi
     cd - >/dev/null
     NEW_BUILD=$((LAST_BUILD + 1))
-    BUILD_DIR="${BUILD_DATE}-${NEW_BUILD}"
+    BUILD_DIR="${BUILD_DIR_ROOT}-${NEW_BUILD}"
+fi
+
+# If no ID was specified, use the build directory name.
+if [ -z $BUILD_ID ]; then
+    BUILD_ID=$BUILD_DIR
 fi
 
 BUILD_DIR_PATH="${ALL_BUILDS_DIRECTORY}/${BUILD_DIR}"
