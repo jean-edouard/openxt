@@ -38,8 +38,6 @@ BRANCH="master"
 
 BUILD_ID=
 
-BUILD_DIR=""
-
 NO_OE=
 NO_DEBIAN=
 NO_CENTOS=
@@ -53,10 +51,9 @@ usage() {
     cat >&2 <<EOF
 usage: $0 [-h] [-i ID] [-j threads] [-b branch] [-n build] [-O] [-D] [-C] [-W]
   -h: Help
-  -i: Build ID (overrides -n)
+  -i: Build ID (will continue the build if it already exists)
   -j: Number of concurrent threads
   -b: Branch to build
-  -n: Continue the specified build instead of creating a new one
   -O: Do not build OpenEmbedded (OpenXT core), not recommended
   -D: Do not build the Debian guest tools
   -C: Do not build the RPM tools and SyncXT
@@ -68,7 +65,7 @@ EOF
     exit $1
 }
 
-while getopts "hi:j:b:n:ODCW" opt; do
+while getopts "hi:j:b:ODCW" opt; do
     case $opt in
         h)
             usage 0
@@ -81,9 +78,6 @@ while getopts "hi:j:b:n:ODCW" opt; do
             ;;
         b)
             BRANCH="${OPTARG}"
-            ;;
-        n)
-            BUILD_DIR="${OPTARG}"
             ;;
         O)
             NO_OE=1
@@ -120,29 +114,17 @@ mkdir -p $ALL_BUILDS_DIRECTORY
 # If an ID was specified, use it also for the build directory name.
 if [ -z $BUILD_ID ]; then
     BUILD_ID=$(date +%y%m%d)
-else
-    BUILD_DIR=$BUILD_ID
+    BUILD_N=1
+    while [ -d ${ALL_BUILDS_DIRECTORY}/${BUILD_ID}${BUILD_N} ]; do
+	BUILD_N=$((BUILD_N + 1))
+	BUILD_ID=${BUILD_ID}${BUILD_N}
+    done
 fi
 
-# If no build number was specified, create a new one
-if [ -z $BUILD_DIR ] ; then
-    BUILD_DATE=$(date +%y%m%d)
-
-    cd ${ALL_BUILDS_DIRECTORY}
-    LAST_BUILD=0
-    if [[ -d "${BUILD_DATE}-1" ]]; then
-        LAST_BUILD=`ls -dvr ${BUILD_DATE}-* | head -1 | cut -d '-' -f 2`
-    fi
-    cd - >/dev/null
-    NEW_BUILD=$((LAST_BUILD + 1))
-    BUILD_DIR="${BUILD_DATE}-${NEW_BUILD}"
-fi
-
-BUILD_DIR_PATH="${ALL_BUILDS_DIRECTORY}/${BUILD_DIR}"
+BUILD_DIR_PATH="${ALL_BUILDS_DIRECTORY}/${BUILD_ID}"
 if [ -e "$BUILD_DIR_PATH" ] ; then
-    echo "Build path is already present: ${BUILD_DIR_PATH}"
-fi
-if ! mkdir -p "${BUILD_DIR_PATH}" ; then
+    echo "Continuing build: ${BUILD_DIR_PATH}"
+elif ! mkdir -p "${BUILD_DIR_PATH}" ; then
     echo "Error: Failed to create build directory: ${BUILD_DIR_PATH}" >&2
     exit 1
 fi
@@ -151,7 +133,7 @@ echo "Fetching git mirrors..."
 ./fetch.sh > "${BUILD_DIR_PATH}/git_heads"
 echo "Done"
 
-echo "Running build: ${BUILD_DIR}"
+echo "Running build: ${BUILD_ID}"
 mkdir -p "${BUILD_DIR_PATH}/raw"
 
 build_container() {
@@ -175,7 +157,7 @@ build_container() {
     #   completion requests, which is not ideal...
     cat *.layer $NAME/build.sh | \
         sed -e "s|\%BUILD_USER\%|${BUILD_USER}|" \
-            -e "s|\%BUILD_DIR\%|${BUILD_DIR}|" \
+            -e "s|\%BUILD_DIR\%|${BUILD_ID}|" \
             -e "s|\%SUBNET_PREFIX\%|${SUBNET_PREFIX}|" \
             -e "s|\%IP_C\%|${IP_C}|" \
             -e "s|\%BUILD_ID\%|${BUILD_ID}|" \
@@ -189,7 +171,7 @@ build_container() {
 build_windows() {
     NUMBER=$1           # 04
 
-    DEST="${ALL_BUILDS_SUBDIR_NAME}/${BUILD_DIR}/windows"
+    DEST="${ALL_BUILDS_SUBDIR_NAME}/${BUILD_ID}/windows"
 
     if [ -d windows ]; then
         echo "Building the Windows tools"
@@ -212,7 +194,7 @@ build_windows() {
 }
 
 build_tools_iso() {
-    WORKDIR="${ALL_BUILDS_DIRECTORY}/${BUILD_DIR}"
+    WORKDIR="${ALL_BUILDS_DIRECTORY}/${BUILD_ID}"
 
     cd $WORKDIR
     mkdir -p raw
@@ -242,7 +224,7 @@ build_tools_iso() {
 }
 
 build_repository () {
-    WORKDIR="${ALL_BUILDS_DIRECTORY}/${BUILD_DIR}"
+    WORKDIR="${ALL_BUILDS_DIRECTORY}/${BUILD_ID}"
 
     local repository="$WORKDIR/repository/packages.main"
 
@@ -322,7 +304,7 @@ EOF
 }
 
 build_iso() {
-    WORKDIR="${ALL_BUILDS_DIRECTORY}/${BUILD_DIR}"
+    WORKDIR="${ALL_BUILDS_DIRECTORY}/${BUILD_ID}"
 
     cd $WORKDIR
     mkdir -p iso
@@ -356,7 +338,7 @@ build_iso() {
 }
 
 build_finalize() {
-    WORKDIR="${ALL_BUILDS_DIRECTORY}/${BUILD_DIR}"
+    WORKDIR="${ALL_BUILDS_DIRECTORY}/${BUILD_ID}"
 
     cd $WORKDIR
 
