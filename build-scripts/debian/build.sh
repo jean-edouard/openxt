@@ -30,7 +30,7 @@ SUBNET_PREFIX=%SUBNET_PREFIX%
 ALL_BUILDS_SUBDIR_NAME=%ALL_BUILDS_SUBDIR_NAME%
 
 GIT_MIRROR=git://${SUBNET_PREFIX}.${IP_C}.1/${BUILD_USER}
-SBUILD="sbuild --purge-deps=never"
+SBUILD="sbuild --purge-deps=never --dpkg-source-opts=\"--format=1.0\""
 
 # Build
 # Note: sbuild doesn't like to build something that's already built.
