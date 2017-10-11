@@ -383,14 +383,14 @@ function check-platform()
     }
     Write-Output "Found Win8 SDK at: $sdkDir"
 
-    #Check for Win8 WDK
+    #Check for Win10 WDK
     $wdkKey = get-software-key-path32 -key "Microsoft\Windows Kits\WDK"
-    $wdkDir = (Get-ItemProperty -Path $wdkKey).WDKContentRoot
+    $wdkDir = (Get-ItemProperty -Path $wdkKey).WDKProductVersion10
     if ($wdkDir.Length -lt 0)
     {
-        throw "Check for Windows 8 WDK failed, not properly installed"
+        throw "Check for Windows 10 WDK failed, not properly installed"
     }
-    Write-Output "Found Win8 WDK at: $wdkDir"
+    Write-Output "Found Win10 WDK at: $wdkDir"
     
     # Test for WIX executables
     #

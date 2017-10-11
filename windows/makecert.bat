@@ -17,9 +17,9 @@ set Year=%date:~10,4%
 set /a Expires=%Year%+1
 set cn="cn=\"%~1\""
 
-%PROGRAMPATH%"\Windows Kits\8.0\bin\x86\makecert" -sv %1.pvk -n %cn% %1.cer -b %Month%/%Day%/%Year% -e %Month%/%Day%/%Expires% -r
+%PROGRAMPATH%"\Windows Kits\10\bin\x86\makecert" -sv %1.pvk -n %cn% %1.cer -b %Month%/%Day%/%Year% -e %Month%/%Day%/%Expires% -r
 if %errorlevel% NEQ 0 goto :eof
-%PROGRAMPATH%"\Windows Kits\8.0\bin\x86\PVK2PFX" -pvk %1.pvk -spc %1.cer -pfx %1.pfx
+%PROGRAMPATH%"\Windows Kits\10\bin\x86\PVK2PFX" -pvk %1.pvk -spc %1.cer -pfx %1.pfx
 if %errorlevel% NEQ 0 goto :eof
 certutil -f -user -importpfx %1.pfx
 

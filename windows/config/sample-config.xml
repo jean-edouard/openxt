@@ -12,7 +12,7 @@
   <CertName>Put Your Cert Name Here</CertName>
   <!-- if you want to cross sign put the path of a cross signing certificate here in a CrossSign node-->
   <CompanyName>Put Your Company Name Here</CompanyName>
-  <SignTool>"C:\Program Files\Windows Kits\8.0\bin\x86"</SignTool>
+  <SignTool>"C:\Program Files\Windows Kits\10\bin\x86"</SignTool>
 
   <!-- Section 2: These nodes are updated with the input to the build script for each build -->
   <BuildTag></BuildTag>
