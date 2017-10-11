@@ -33,7 +33,6 @@ $szInstaller       = "7z920.msi"
 $dotnetInstaller   = "dotnet45.exe"
 $winddkInstaller   = "GRMWDK_EN_7600_1.ISO"
 $wdkInstaller      = "wdksetup.exe"
-$wdkCoInstaller    = "wdfcoinstaller.msi"
 $sqlsce32Installer = "SSCERuntime_x86-ENU.exe"
 $sqlsce64Installer = "SSCERuntime_x64-ENU.exe"
 $vs2012Installer   = "vs_premium.exe"
@@ -51,8 +50,7 @@ $cygwinUrl   = "https://www.cygwin.com/setup-x86.exe"
 $szUrl       = "http://downloads.sourceforge.net/project/sevenzip/7-Zip/9.20/7z920.msi"
 $dotnetUrl   = "http://download.microsoft.com/download/E/2/1/E21644B5-2DF2-47C2-91BD-63C560427900/NDP452-KB2901907-x86-x64-AllOS-ENU.exe"
 $winddkUrl   = "http://download.microsoft.com/download/4/A/2/4A25C7D5-EFBE-4182-B6A9-AE6850409A78/GRMWDK_EN_7600_1.ISO"
-$wdkUrl      = "http://download.microsoft.com/download/2/4/C/24CA7FB3-FF2E-4DB5-BA52-62A4399A4601/wdk/wdksetup.exe"
-$wdkCoUrl    = "http://download.microsoft.com/download/0/5/F/05FD6919-6250-425B-86ED-9B095E54065A/wdfcoinstaller.msi"
+$wdkUrl      = "http://download.microsoft.com/download/4/E/0/4E07EAAD-E394-4EA8-B2B8-D46E46A409C5/wdk/wdksetup.exe"
 $sqlsce32Url = "http://download.microsoft.com/download/0/5/D/05DCCDB5-57E0-4314-A016-874F228A8FAD/SSCERuntime_x86-ENU.exe"
 $sqlsce64Url = "http://download.microsoft.com/download/0/5/D/05DCCDB5-57E0-4314-A016-874F228A8FAD/SSCERuntime_x64-ENU.exe"
 $vs2012Url   = "http://download.microsoft.com/download/1/3/1/131D8A8C-95D8-41D4-892A-1DF6E3C5DF7D/vs_premium.exe"
@@ -69,11 +67,11 @@ $tmp = $env:temp + "\"
 # we need to make a list of packages available
 # I don't know how to export a list to callers directly so simply return
 # the list of packages as a string array
-# Note: this list used to include "CAPICOM" (between "Wix" and "WDK8")
+# Note: this list used to include "CAPICOM" (between "Wix" and "WDK")
 #     The URL for CAPICOM is broken, Microsoft probably dropped support for it.
 #     CAPICOM doesn't seem to be needed anyway, so it was removed from the list.
 function Get-Packages {
-  return "GnuPG","Cygwin","NSIS","NSISAdvancedLogging","7Zip","DotNet45","WinDDK710","SqlSce32", "SqlSce64", "VS2012", "Win8SDK", "Wix", "WDK8", "VS2012U4", "PathAdditions"
+  return "GnuPG","Cygwin","NSIS","NSISAdvancedLogging","7Zip","DotNet45","WinDDK710","SqlSce32", "SqlSce64", "VS2012", "Win8SDK", "Wix", "WDK", "VS2012U4", "PathAdditions"
 }
 
 # powershell inspects to import only installed modules
@@ -129,7 +127,7 @@ if ($arch -eq "AMD64") {
     $programFiles32 = ([System.Environment]::GetEnvironmentVariable("ProgramFiles"))
 }
 $nsisdest = $programFiles32 + "\NSIS"
-$pathelements = @( $nsisdest, "C:\cygwin\bin", "C:\WinDDK\7600.16385.1\bin\selfsign", $programFiles32+"\Windows Kits\8.0\bin\x86")
+$pathelements = @( $nsisdest, "C:\cygwin\bin", "C:\WinDDK\7600.16385.1\bin\selfsign", $programFiles32+"\Windows Kits\10\bin\x86")
 
 Function Test-NSIS {
   return (Test-Path ("$nsisdest\makensis.exe"))
@@ -255,25 +253,20 @@ function Install-WinDDK710 {
   Invoke-CommandChecked $setup /install ALL /ui-level EXPRESS
 }
 
-function Test-WDK8 {
+function Test-WDK {
   if ($arch -eq "AMD64") {
     $regPath = "HKLM:\Software\Wow6432Node\Microsoft\Windows Kits\WDK"
   } else {
     $regPath = "HKLM:\Software\Microsoft\Windows Kits\WDK"
   }
-  $version = [version](Get-ItemProperty $regPath -name "WDKProductVersion" -ErrorAction SilentlyContinue).WDKProductVersion
-  return ($version -ge [version]"8.59.29757")
+  $version = [version](Get-ItemProperty $regPath -name "WDKProductVersion10" -ErrorAction SilentlyContinue).WDKProductVersion10
+  return ($version -ge [version]"10.0.15063.0")
 }
 
-function Install-WDK8 {
+function Install-WDK {
   $exe = $tmp + $wdkInstaller
-  $msi = $tmp + $wdkCoInstaller
-  PerformDownload "$wdkUrl" $wdkInstaller "83-35-88-1E-40-20-DE-B6-ED-4C-E3-5C-CC-8E-EC-A0-E6-83-66-E6-B7-4C-E1-8F-A1-42-E2-92-0E-DD-34-CE"
+  PerformDownload "$wdkUrl" $wdkInstaller "48-9B-49-71-11-BC-79-1D-90-21-B3-57-3B-FD-93-08-6A-28-B5-98-C7-32-5A-B2-55-E8-1C-6F-5D-80-A8-20"
   Invoke-CommandChecked $exe /q /norestart
-  # ideally I'd like find out how to detect whether the coinstaller is installed separately to the wdksetup, and handle the
-  # coinstaller as a separate package.
-  PerformDownload "$wdkCoUrl" $wdkCoInstaller "29-31-42-07-81-4C-E9-D5-D7-36-95-F7-E9-23-95-39-CF-37-C7-9E-75-0B-9D-5E-A5-A5-EF-54-87-A5-83-D6"
-  Invoke-CommandChecked msiexec.exe /i $msi /qn
 }
 
 function Test-PathAdditions {
