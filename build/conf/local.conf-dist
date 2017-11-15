@@ -83,6 +83,9 @@ PREFERRED_PROVIDER_openssl-conf = "openssl-conf"
 PREFERRED_PROVIDER_nativesdk-openssl = "nativesdk-openssl"
 PREFERRED_PROVIDER_nativesdk-openssl-conf = "nativesdk-openssl-conf"
 
+IMAGE_FEATURES[validitems] += "web-certificates"
+EXTRA_IMAGE_FEATURES += "web-certificates"
+
 # 2) Build tweaks/hacks
 
 PREFERRED_PROVIDER_console-tools = "console-tools"
