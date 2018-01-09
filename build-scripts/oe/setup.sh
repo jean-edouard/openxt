@@ -55,7 +55,7 @@ dpkg -i libgmpxx4ldbl_4.3.2+dfsg-1_amd64.deb libgmp3c2_4.3.2+dfsg-1_amd64.deb li
 # Install the required version of GHC
 cd /tmp
 cat >sums <<EOF
-0a803af298fb89143599406b82725744c7567be08a0a5ba18b724b0ad9d5421cc3402c7a49670d5d850a4c4cac122f98  ghc-6.12.3-i386-unknown-linux-n.tar.bz2
+0a803af298fb89143599406b82725744c7567be08a0a5ba18b724b0ad9d5421cc3402c7a49670d5d850a4c4cac122f98  ghc-6.12.3-x86_64-unknown-linux-n.tar.bz2
 EOF
 wget https://downloads.haskell.org/~ghc/6.12.3/ghc-6.12.3-x86_64-unknown-linux-n.tar.bz2
 sha384sum -c sums --quiet || exit 1
