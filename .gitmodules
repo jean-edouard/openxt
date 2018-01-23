@@ -17,7 +17,7 @@
 [submodule "build/repos/meta-selinux"]
 	path = build/repos/meta-selinux
 	url = git://git.yoctoproject.org/meta-selinux
-	branch = pyro
+	branch = master
 [submodule "build/repos/meta-intel"]
 	path = build/repos/meta-intel
 	url = git://git.yoctoproject.org/meta-intel
