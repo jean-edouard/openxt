@@ -192,6 +192,10 @@ if [ ! -d openxt ] ; then
         echo "BBLAYERS =+ \"\${TOPDIR}/repos/${!name_var}\"" >> build/conf/bblayers.conf
     done
 
+    # HACK: remove problematic recipes
+    rm -f build/repos/meta-virtualization/recipes-extended/xen/xen_4.6.1.bb
+    rm -f build/repos/meta-virtualization/recipes-extended/xen/xen_git.bb
+
     # Configure OpenXT
     setupoe
 else
