@@ -254,6 +254,8 @@ do_oe_copy()
         for t in cpio cpio.gz cpio.bz2 \
             tar tar.gz tar.bz2 \
             ext3 ext3.gz ext3.bz2 \
+            vhd vhd.gz \
+            vhddisk vhddisk.gz \
             ext3.vhd ext3.vhd.gz ext3.vhd.bz2 \
             xc.ext3 xc.ext3.gz xc.ext3.bz2 \
             xc.ext3.vhd xc.ext3.vhd.gz xc.ext3.vhd.bz2 \
