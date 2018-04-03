@@ -1,8 +1,8 @@
 # OpenXT branch to build.
 BRANCH="master"
 
-# OpenXT branch to build.
-OE_BRANCH="jethro"
+# OpenEmbedded branch to build.
+OE_BRANCH="pyro"
 
 # OpenXT git repositories. Optionally replace with a local mirror.
 OPENXT_GIT_MIRROR="github.com/OpenXT"
@@ -35,9 +35,11 @@ XENCLIENT_TAG=oe-upgrade-pyro
 # The commit hash for meta-java is the last commit that had openjdk6 and idedtea6
 META_JAVA_TAG=pyro
 
-# Default to the same branch of meta-selinux as OE_BRANCH (e.g. jethro).
+# Ideally this would be the same branch of meta-selinux as OE_BRANCH (e.g.
+# pyro), but meta-selinux doesn't have a pyro branch.  So we set it to master
+# for now.
 # Uncomment and edit if you need a specific commit from meta-selinux.
-#META_SELINUX_TAG=jethro
+#META_SELINUX_TAG=master
 
 # Downloads needed for OpenXT build. Optionally replace with a local mirror.
 OPENXT_MIRROR="http://mirror.openxt.org"
